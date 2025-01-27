@@ -44,7 +44,7 @@ public class Visit {
 
     // tag::paid-default-value[]
     @Column(name = "PAID")
-    private Boolean paid;
+    private Boolean paid = Boolean.FALSE;
 
     // end::paid-default-value[]
 
