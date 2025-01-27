@@ -102,6 +102,7 @@
                     </genericFilter>
                     <hbox id="buttonsPanel" classNames="buttons-panel">
                         <button id="createBtn" action="visitsDataGrid.create"/>
+                        <button id="createRegularCheckupBtn" action="visitsDataGrid.createRegularCheckup"/>
                         <button id="editBtn" action="visitsDataGrid.edit"/>
                         <button id="removeBtn" action="visitsDataGrid.remove"/>
                         <simplePagination id="pagination" dataLoader="visitsDl"/>
@@ -113,6 +114,7 @@
                               columnReorderingAllowed="true">
                         <actions>
                             <action id="create" type="list_create"/>
+                            <action id="createRegularCheckup" text="msg://createRegularCheckup" icon="vaadin:doctor"/>
                             <action id="edit" type="list_edit"/>
                             <action id="remove" type="list_remove"/>
                         </actions>

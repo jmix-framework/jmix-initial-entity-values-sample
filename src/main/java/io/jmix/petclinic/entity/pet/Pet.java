@@ -2,7 +2,6 @@ package io.jmix.petclinic.entity.pet;
 
 import io.jmix.core.metamodel.annotation.JmixEntity;
 import io.jmix.petclinic.entity.NamedEntity;
-import io.jmix.petclinic.entity.Person;
 import io.jmix.petclinic.entity.owner.Owner;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +17,8 @@ public class Pet extends NamedEntity {
     @NotNull
     private String identificationNumber;
 
+    @Column(name = "HEALTH_STATUS")
+    private String healthStatus;
     @Column(name = "BIRTHDATE")
     private LocalDate birthdate;
 
@@ -28,6 +29,14 @@ public class Pet extends NamedEntity {
     @JoinColumn(name = "OWNER_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private Owner owner;
+
+    public HealthStatus getHealthStatus() {
+        return healthStatus == null ? null : HealthStatus.fromId(healthStatus);
+    }
+
+    public void setHealthStatus(HealthStatus healthStatus) {
+        this.healthStatus = healthStatus == null ? null : healthStatus.getId();
+    }
 
     public LocalDate getBirthdate() {
         return birthdate;

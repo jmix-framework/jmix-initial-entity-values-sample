@@ -1,5 +1,6 @@
 package io.jmix.petclinic.entity.visit;
 
+import io.jmix.core.TimeSource;
 import io.jmix.core.annotation.DeletedBy;
 import io.jmix.core.annotation.DeletedDate;
 import io.jmix.core.entity.annotation.JmixGeneratedValue;
@@ -10,6 +11,7 @@ import io.jmix.core.metamodel.annotation.JmixProperty;
 import io.jmix.petclinic.entity.NamedEntity;
 import io.jmix.petclinic.entity.User;
 import io.jmix.petclinic.entity.pet.Pet;
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.CreatedBy;
@@ -25,6 +27,7 @@ import java.util.UUID;
 import static io.jmix.petclinic.entity.visit.VisitTreatmentStatus.DONE;
 import static io.jmix.petclinic.entity.visit.VisitTreatmentStatus.IN_PROGRESS;
 
+// tag::start-class[]
 @JmixEntity
 @Table(name = "PETCLINIC_VISIT", indexes = {
         @Index(name = "IDX_PETCLINIC_VISIT_ASSIGNED_NURSE", columnList = "ASSIGNED_NURSE_ID"),
@@ -32,10 +35,18 @@ import static io.jmix.petclinic.entity.visit.VisitTreatmentStatus.IN_PROGRESS;
 })
 @Entity(name = "petclinic_Visit")
 public class Visit {
+
+    // end::start-class[]
     @JmixGeneratedValue
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    // tag::paid-default-value[]
+    @Column(name = "PAID")
+    private Boolean paid;
+
+    // end::paid-default-value[]
 
     @JoinColumn(name = "PET_ID", nullable = false)
     @NotNull
@@ -90,6 +101,14 @@ public class Visit {
     @DeletedDate
     @Column(name = "DELETED_DATE")
     private OffsetDateTime deletedDate;
+
+    public Boolean getPaid() {
+        return paid;
+    }
+
+    public void setPaid(Boolean paid) {
+        this.paid = paid;
+    }
 
     @DependsOnProperties({"type"})
     @JmixProperty
@@ -265,4 +284,26 @@ public class Visit {
         return getTreatmentStatus().equals(visitTreatmentStatus);
     }
 
+    // tag::post-construct-init[]
+    @PostConstruct // <1>
+    public void initTreatmentStatus() {
+        if (treatmentStatus == null) {
+            setTreatmentStatus(VisitTreatmentStatus.UPCOMING); // <2>
+        }
+    }
+    // end::post-construct-init[]
+
+    // tag::post-construct-dependency-injection[]
+    @PostConstruct // <1>
+    public void initVisitStart(
+            TimeSource timeSource // <2>
+    ) {
+        if (visitStart == null) {
+            setVisitStart(timeSource.now().toLocalDateTime()); // <3>
+        }
+    }
+    // end::post-construct-dependency-injection[]
+
+// tag::end-class[]
 }
+// end::end-class[]

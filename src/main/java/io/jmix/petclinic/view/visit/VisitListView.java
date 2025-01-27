@@ -9,6 +9,7 @@ import io.jmix.core.security.CurrentAuthentication;
 import io.jmix.flowui.DialogWindows;
 import io.jmix.flowui.component.checkboxgroup.JmixCheckboxGroup;
 import io.jmix.flowui.component.genericfilter.GenericFilter;
+import io.jmix.flowui.component.grid.DataGrid;
 import io.jmix.flowui.component.select.JmixSelect;
 import io.jmix.flowui.component.tabsheet.JmixTabSheet;
 import io.jmix.flowui.kit.action.ActionPerformedEvent;
@@ -18,10 +19,12 @@ import io.jmix.flowui.view.*;
 import io.jmix.fullcalendarflowui.component.FullCalendar;
 import io.jmix.fullcalendarflowui.component.data.EntityCalendarEvent;
 import io.jmix.fullcalendarflowui.component.event.*;
+import io.jmix.petclinic.entity.pet.Pet;
 import io.jmix.petclinic.entity.visit.Visit;
 import io.jmix.petclinic.entity.visit.VisitType;
 import io.jmix.petclinic.view.main.MainView;
 import io.jmix.petclinic.view.visit.calendar.MonthFormatter;
+import io.jmix.petclinic.view.visit.visit.RegularCheckupDetailView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +37,7 @@ import java.util.Objects;
 import java.util.Set;
 
 
+// tag::start-class[]
 @Route(value = "visits", layout = MainView.class)
 @ViewController("petclinic_Visit.list")
 @ViewDescriptor("visit-list-view.xml")
@@ -43,11 +47,16 @@ public class VisitListView extends StandardListView<Visit> {
     private static final Logger log = LoggerFactory.getLogger(VisitListView.class);
 
     @Autowired
-    private CurrentAuthentication currentAuthentication;
-    @Autowired
     private DialogWindows dialogWindows;
+    @ViewComponent
+    private DataGrid<Visit> visitsDataGrid;
+
+    // end::start-class[]
+
     @Autowired
     private DatatypeFormatter datatypeFormatter;
+    @Autowired
+    private CurrentAuthentication currentAuthentication;
     @ViewComponent
     private JmixCheckboxGroup<VisitType> visitTypeField;
     @ViewComponent
@@ -66,6 +75,8 @@ public class VisitListView extends StandardListView<Visit> {
     private DataContext dataContext;
     @ViewComponent
     private GenericFilter genericFilter;
+    @ViewComponent
+    private MessageBundle messageBundle;
 
     @Subscribe
     public void onInit(final InitEvent event) {
@@ -237,4 +248,37 @@ public class VisitListView extends StandardListView<Visit> {
             genericFilter.loadConfigurationsAndApplyDefault();
         }
     }
+
+    // tag::create-regular-checkup-dialog-windows[]
+    @Subscribe("visitsDataGrid.createRegularCheckup")
+    public void onVisitsDataGridCreateRegularCheckup(final ActionPerformedEvent event) {
+        dialogWindows.lookup(this, Pet.class) // <1>
+                .withSelectHandler(pets -> createVisitForPet(pets.iterator().next()))
+                .open();
+    }
+
+
+    private void createVisitForPet(Pet pet) {
+        dialogWindows.detail(visitsDataGrid) // <2>
+                .newEntity() // <3>
+                .withInitializer(visit -> {  // <4>
+                    visit.setType(VisitType.REGULAR_CHECKUP);
+                    visit.setDescription(regularCheckupDescriptionContent(pet));
+                    visit.setPet(pet);
+                })
+                .withViewClass(RegularCheckupDetailView.class)
+                .open();
+    }
+
+    // end::create-regular-checkup-dialog-windows[]
+
+    private String regularCheckupDescriptionContent(Pet pet) {
+        return messageBundle.formatMessage("regularCheckupContent",
+                pet.getName(),
+                pet.getIdentificationNumber()
+        );
+    }
+
+// tag::end-class[]
 }
+// end::end-class[]

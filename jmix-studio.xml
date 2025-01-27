@@ -72,5 +72,9 @@
   <component name="JmixLiquibaseChangesConfig">
     <exclude-change idName="FK_PETCLINIC_PET_ON_OWNER" tagName="dropIndex" />
     <exclude-change idName="FK_PETCLINIC_PET_ON_TYPE" tagName="dropIndex" />
+    <exclude-change idName="PETCLINIC_OWNER_NOTIFICATION" tagName="dropTable" />
+    <exclude-change idName="PETCLINIC_VISIT#ROOM_KEYCODE" tagName="dropColumn" />
+    <exclude-change idName="FK_OWNER_NOTIFICATION_OWNER" tagName="dropForeignKeyConstraint" />
+    <exclude-change idName="FK_OWNER_NOTIFICATION_VISIT" tagName="dropForeignKeyConstraint" />
   </component>
 </project>

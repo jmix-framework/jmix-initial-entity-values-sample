@@ -48,7 +48,7 @@ public interface NurseRole {
     @EntityPolicy(entityClass = PetType.class, actions = EntityPolicyAction.READ)
     void petType();
 
-    @ViewPolicy(viewIds = {"petclinic_MyVisits", "petclinic_Pet.list", "petclinic_Owner.list", "petclinic_Visit.list", "petclinic_Specialty.list", "petclinic_Veterinarian.list", "petclinic_PetType.list", "petclinic_Owner.detail", "petclinic_Pet.detail", "petclinic_PetType.detail", "petclinic_PetType.lookup", "petclinic_Specialty.detail", "petclinic_Veterinarian.detail", "petclinic_Visit.detail"})
+    @ViewPolicy(viewIds = {"petclinic_MyVisits", "petclinic_Pet.list", "petclinic_Owner.list", "petclinic_Visit.list", "petclinic_Specialty.list", "petclinic_Veterinarian.list", "petclinic_PetType.list", "petclinic_Owner.detail", "petclinic_Pet.detail", "petclinic_PetType.detail", "petclinic_PetType.lookup", "petclinic_Specialty.detail", "petclinic_Veterinarian.detail", "petclinic_Visit.detail", "petclinic_Visit.regularCheckup"})
     void views();
 
     @MenuPolicy(menuIds = {"petclinic_MyVisits", "petclinic_Pet.list", "petclinic_Owner.list", "petclinic_Visit.list", "petclinic_Specialty.list", "petclinic_Veterinarian.list", "petclinic_PetType.list"})
