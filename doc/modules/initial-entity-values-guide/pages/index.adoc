@@ -58,6 +58,7 @@ This approach is simple and efficient for static default values that do not depe
 The `@PostConstruct` annotation allows you to execute custom initialization logic after an entity instance has been created. This method is called once the object is fully initialized, but before it is used. This is particularly useful for initializing fields that depend on more complex logic or external methods.
 
 The `@PostConstruct` method is invoked in the following scenarios:
+
 - When an instance is programmatically created using `metadata.create(Visit.class)` or `dataManager.create(Visit.class)`.
 - When an instance is created by the UI framework during user interaction.
 - When an instance is created by the generic REST API.
@@ -136,11 +137,6 @@ In the example below, the `initializer` method is used to set the `healthStatus`
 ----
 include::example$/src/main/java/io/jmix/petclinic/view/pet/pet/PetListView.java[tags=start-class;create-initializer;end-class]
 ----
-.PetListView.java
-[source,java]
-----
-include::example$/src/main/java/io/jmix/petclinic/view/pet/pet/PetListView.java[tags=create-initializer]
-----
 <1> The `@Install` annotation connects this method to the `initializer` property of the `Create` action for the `petsDataGrid` component. The `initializer` is responsible for customizing the default state of the entity instance when a new entity is created through this action. By using this mechanism, you can ensure specific fields are pre-filled or set with default values at the moment of entity creation.
 <2> The `Pet` entity instance is passed as a parameter to the method. This instance represents the new entity being created, allowing you to modify its initial state.
 <3> The `setHealthStatus` method is used to set the default value for the `healthStatus` field of the `Pet` entity to `UNKNOWN`.
@@ -176,10 +172,75 @@ image::ui-initilization-external-2.png[Pet Lookup Dialog, width=800, alt="Pet Lo
 
 image::ui-initilization-external-3.png[Regular Checkup Creation Dialog, width=800, alt="Regular Checkup Creation Dialog", link="_images/ui-initilization-external-3.png"]
 
+[[when-to-use-which]]
+== Choosing the Right Initialization Approach
+
+Different initialization approaches are suited for different use cases. The choice depends on the context in which the entity is created and the level of control or customization required. Below is a comparison of the main approaches and their characteristics to help you decide which one to use.
+
+[[comparison-matrix]]
+=== Comparison Matrix
+
+The table below summarizes the main differences between the initialization approaches:
+
+[cols="1,1,1,1", options="header"]
+|===
+| Approach
+| Applicability
+| Scope
+| Notes
+
+| xref:#default-values[]
+| Always applied
+| Entity-wide
+| Applied regardless of how the entity is created (Generic REST API, programmatic creation, UI actions, etc.). Best for simple static default values.
+
+| xref:#post-construct-initialization[]
+| Always applied
+| Entity-wide
+| Similar to direct attribute assignment but allows for dynamic logic, such as invoking services or beans. Best for default values requiring more complex initialization logic.
+
+| xref:#internal-initialization[]
+| UI-only
+| View-specific
+| Logic is scoped to the specific UI screen where the entity is created. Cannot handle broader contexts like REST API or programmatic creation.
+
+| xref:external-initialization-create-action[]
+| UI-only
+| Calling view-specific
+| Allows additional customization within the calling view. Useful when contextual information from the view is needed for initialization.
+
+| xref:external-initialization-dialogs-api[]
+| UI-only
+| Fully customizable
+| Suitable for workflows that require additional user input or intermediate steps (e.g., opening dialogs or gathering related entity data).
+|===
+
+=== Key Considerations
+
+* **Entity-level initialization**: Approaches like **Direct Attribute Assignment** and **PostConstruct Initialization** are applied universally, ensuring that entities are initialized regardless of the creation method. This includes cases like programmatic creation, Generic REST API calls, or entity management tools.
+
+* **UI-specific initialization**: UI-layer approaches such as **InitEntityEvent**, **Create Action Initializer**, and **Dialog Windows API** are only applied within the context of the respective user interface. These methods will not be executed for entities created outside the UI (e.g., via the Generic REST API).
+
+* **Contextual logic**:
+** **InitEntityEvent** is simple and requires minimal code but lacks access to user inputs or contextual data from the calling view.
+** **Create Action Initializer** allows some contextual logic from the calling view, making it more flexible.
+** **Dialog Windows API** is ideal for workflows where user interaction is needed to determine initialization values.
+
+Use this comparison to select the best initialization approach based on your application's requirements and the level of customization needed.
+
 [[summary]]
 == Summary
 
-Two - three paragraphs of summary text
+This guide explored how to set up initial values for entities in Jmix, demonstrating techniques to streamline data entry and ensure consistency across applications. We reviewed direct attribute assignment for static defaults, `@PostConstruct` for more dynamic logic, and UI-based initialization methods like `InitEntityEvent`, `Create Action Initializer`, and the Dialog Windows API. Each approach was illustrated with practical examples from the Petclinic application to highlight its strengths and use cases.
+
+Entity initialization methods are crucial for improving user experience and maintaining data integrity. Direct attribute assignment and `@PostConstruct` ensure universal application of defaults, making them suitable for all creation contexts, including REST API and programmatic use. UI-based approaches, on the other hand, are limited to user interface contexts but provide additional flexibility by incorporating user input or dynamic logic, especially with tools like the Dialog Windows API.
+
+By understanding these approaches and their trade-offs, you can implement initial entity values that align with your application’s needs and workflows. These techniques enable robust, flexible, and consistent data initialization, supporting scalable and maintainable application designs while enhancing usability for end-users.
+
+
+// TODO: default value before save (like auto increment numbers)?
+// TODO: dynamic default value different per user selection (in dynamic table)?
+// TODO: create lifecycle diagram on when which default value is set
 
 [[further-information]]
 === Further Information
