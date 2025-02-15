@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd"
+        objectQuotingStrategy="QUOTE_ONLY_RESERVED_WORDS">
+    <changeSet id="1" author="petclinic">
+        <addColumn tableName="PETCLINIC_VISIT">
+            <column name="VISIT_NUMBER" type="VARCHAR(255)"/>
+        </addColumn>
+
+        <addNotNullConstraint columnName="VISIT_NUMBER" defaultNullValue="''" tableName="PETCLINIC_VISIT"/>
+    </changeSet>
+    <changeSet id="2" author="petclinic">
+        <createIndex indexName="IDX_PETCLINIC_VISIT_VISIT_NUMBER" tableName="PETCLINIC_VISIT" unique="true">
+            <column name="VISIT_NUMBER"/>
+            <column name="DELETED_DATE"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

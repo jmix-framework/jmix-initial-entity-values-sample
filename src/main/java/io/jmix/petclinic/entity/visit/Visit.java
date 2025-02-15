@@ -31,7 +31,8 @@ import static io.jmix.petclinic.entity.visit.VisitTreatmentStatus.IN_PROGRESS;
 @JmixEntity
 @Table(name = "PETCLINIC_VISIT", indexes = {
         @Index(name = "IDX_PETCLINIC_VISIT_ASSIGNED_NURSE", columnList = "ASSIGNED_NURSE_ID"),
-        @Index(name = "IDX_PETCLINIC_VISIT_PET", columnList = "PET_ID")
+        @Index(name = "IDX_PETCLINIC_VISIT_PET", columnList = "PET_ID"),
+        @Index(name = "IDX_PETCLINIC_VISIT_VISIT_NUMBER", columnList = "VISIT_NUMBER, DELETED_DATE", unique = true)
 })
 @Entity(name = "petclinic_Visit")
 public class Visit {
@@ -41,6 +42,10 @@ public class Visit {
     @Column(name = "ID", nullable = false)
     @Id
     private UUID id;
+
+    @Column(name = "VISIT_NUMBER", nullable = false)
+    @NotNull
+    private String visitNumber;
 
     // tag::paid-default-value[]
     @Column(name = "PAID")
@@ -101,6 +106,14 @@ public class Visit {
     @DeletedDate
     @Column(name = "DELETED_DATE")
     private OffsetDateTime deletedDate;
+
+    public String getVisitNumber() {
+        return visitNumber;
+    }
+
+    public void setVisitNumber(String visitNumber) {
+        this.visitNumber = visitNumber;
+    }
 
     public Boolean getPaid() {
         return paid;

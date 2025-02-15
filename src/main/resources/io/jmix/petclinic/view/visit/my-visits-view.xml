@@ -29,7 +29,7 @@
     </actions>
     <layout>
         <hbox id="buttonsPanel" classNames="buttons-panel">
-            <button id="startTreatmentBtn" action="visitsDataGrid.startTreatment" />
+            <button id="startTreatmentBtn" action="visitsDataGrid.startTreatment"/>
             <button id="finishTreatmentBtn" action="visitsDataGrid.finishTreatment"/>
             <simplePagination id="pagination" dataLoader="visitsDl"/>
         </hbox>
@@ -52,6 +52,7 @@
                 <column property="visitStart"/>
                 <column property="type"/>
                 <column property="treatmentStatus"/>
+                <column property="visitNumber"/>
             </columns>
         </dataGrid>
         <hbox id="lookupActions" visible="false">
