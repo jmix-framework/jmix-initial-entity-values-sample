@@ -1,6 +1,8 @@
 package io.jmix.petclinic.view.visit;
 
+import io.jmix.flowui.component.SupportsTypedValue;
 import io.jmix.flowui.component.combobox.EntityComboBox;
+import io.jmix.flowui.component.datetimepicker.TypedDateTimePicker;
 import io.jmix.petclinic.EmployeeRepository;
 import io.jmix.petclinic.entity.NamedEntity;
 import io.jmix.petclinic.entity.Person;
@@ -16,6 +18,8 @@ import io.jmix.flowui.view.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 
@@ -47,6 +51,34 @@ public class VisitDetailView extends StandardDetailView<Visit> {
     }
 
     // end::init-entity-event[]
+
+    // tag::visit-start-value-change-event[]
+    @Subscribe("visitStartField") // <1>
+    public void onVisitStartFieldTypedValueChange(
+            final SupportsTypedValue.TypedValueChangeEvent<TypedDateTimePicker<LocalDateTime>, LocalDateTime> event // <2>
+    ) {
+        LocalDateTime value = event.getValue();
+
+        if (value != null) {
+            getEditedEntity().setVisitEnd(calculateVisitEnd(value)); // <3>
+        }
+        else {
+            getEditedEntity().setVisitEnd(null);
+        }
+    }
+
+    private LocalDateTime calculateVisitEnd(LocalDateTime visitStart) {
+
+        int durationInMinutes = switch (getEditedEntity().getType()) {
+            case REGULAR_CHECKUP -> 30;
+            case RECHARGE -> 180;
+            case STATUS_CONDITION_HEALING, DISEASE_TREATMENT, OTHER -> 60;
+        };
+
+        return visitStart.plusMinutes(durationInMinutes);
+    }
+    // end::visit-start-value-change-event[]
+
 
     // tag::before-save-event[]
     @Subscribe
@@ -105,7 +137,6 @@ public class VisitDetailView extends StandardDetailView<Visit> {
 
     }
     // end::before-save-event[]
-
 
 // tag::end-class[]
 }

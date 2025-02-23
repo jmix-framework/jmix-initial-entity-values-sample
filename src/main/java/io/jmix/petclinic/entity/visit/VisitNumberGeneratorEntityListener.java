@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 @Component("petclinic_VisitNumberGeneratorEntityListener")
 public class VisitNumberGeneratorEntityListener {
+
     private final Sequences sequences;
 
     public VisitNumberGeneratorEntityListener(Sequences sequences) {
@@ -18,14 +19,16 @@ public class VisitNumberGeneratorEntityListener {
     @EventListener
     public void calculateVisitNumber(final EntitySavingEvent<Visit> event) { // <1>
 
-        long sequenceNumber = sequences.createNextValue(Sequence.withName("visit_number")); // <2>
+        if (!event.isNewEntity()) { // <2>
+            return;
+        }
+
+        long sequenceNumber = sequences.createNextValue(Sequence.withName("visit_number")); // <3>
         int visitYear = event.getEntity().getVisitStart().getYear();
 
-        String visitNumber = "V-%s-%06d".formatted(visitYear, sequenceNumber); // <3>
+        String visitNumber = "V-%s-%06d".formatted(visitYear, sequenceNumber); // <4>
 
-        if (event.isNewEntity()) { // <4>
-            event.getEntity().setVisitNumber(visitNumber);
-        }
+        event.getEntity().setVisitNumber(visitNumber);
     }
 }
 

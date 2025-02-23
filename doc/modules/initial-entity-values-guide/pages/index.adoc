@@ -31,32 +31,59 @@ git checkout {page-origin-branch}
 [[what-we-are-going-to-build]]
 == What We Are Going to Build
 
-This guide enhances the https://github.com/jmix-framework/jmix-petclinic-2[Jmix Petclinic^] example with practical use cases for setting initial values in entities. Through real-world examples, we demonstrate how to implement and interact with various initialization methods to ensure seamless user experiences and accurate data management.
+This guide enhances the https://github.com/jmix-framework/jmix-petclinic-2[Jmix Petclinic^] example with practical use cases for setting initial values in entities. The Petclinic application demonstrates various methods for initializing entity attributes throughout their lifecycle—from creation to persistence—using real-world examples such as visit records for pets.
 
-The application includes the following scenarios:
+The application includes the following examples:
 
-- Direct Attribute Assignment: Learn how to set default values for simple attributes like `Boolean` or `Integer` directly in the entity class.
+- **Default Values for Visit Fields:**
+Automatically assign default values, such as setting `paid = false` directly in the entity or initializing the `treatmentStatus` to `UPCOMING` using `@PostConstruct`.
 
-- Lifecycle Event Handling: Use Jmix lifecycle events such as `@PostConstruct` to initialize more complex attributes dynamically.
+- **Automatic Pet Health Status in the Pet List View:**
+Use a `Create Action Initializer` to set the `healthStatus` of new pets to `UNKNOWN` when created from the Pet list view.
 
-- UI-Based Initialization: Understand how to define initial values when entities are created via the user interface, using the `InitEntityEvent` listener in standard views.
+- **Default Descriptions for Visits Based on Type:**
+In the Visit detail view, generate a structured description (e.g., checklist for a regular check-up) if the user leaves the field blank. This logic is executed during the `BeforeSaveEvent` in the UI.
 
+- **Unique Visit Numbers via Entity Listener:**
+Automatically generate a formatted visit number based on the visit date using an `EntitySavingEvent` listener before the record is saved.
 
-[[entity-field-initialization]]
-== Entity Fields Initialization
+- **Automatic Nurse Assignment After Visit Creation:**
+Assign an available nurse to a new visit using an `EntityChangedEvent` listener triggered after the database commit. This ensures that only nurses without overlapping appointments are assigned.
+
+These examples illustrate the different approaches for setting initial entity values, ranging from simple defaults to complex logic involving user input and database transactions. The guide demonstrates how to structure initialization logic effectively across the entity lifecycle in Jmix applications.
+
+[[entity-lifecycle-overview]]
+== Entity Lifecycle Overview
+
+Before diving into the techniques for setting initial values, let's first look at the typical lifecycle of an entity in Jmix. The lifecycle spans multiple stages, from creation to persistence, offering various opportunities for initialization logic.
+
+image::entity-lifecycle.svg[Entity Lifecycle Overview, width=800, alt="Entity Lifecycle Overview", link="_images/entity-lifecycle.svg"]
+
+The process begins with *1. System: Entity Instantiation*, where basic defaults are applied when Jmix creates a new entity programmatically or through the UI. Next, during *2. UI: View Initialization*, UI-level events such as `InitEntityEvent` or `Create Action Initializers` allow for setting values based on user context.
+
+As users interact with the form, *3. UI: Dependent Field Updates* dynamically adjust fields based on changes in user input, ensuring consistency. The *4. UI: Initialization while Saving* phase allows for final modifications before persistence, ensuring necessary adjustments based on the current state.
+
+Finally, *5. System: Persistence Events* occur when the entity is saved to the database. System-level events like `EntitySavingEvent` and `EntityChangedEvent` provide the opportunity for automatic value assignments and post-save actions.
+
+Now, let's explore the first example, starting with system-level entity initialization.
+
+[[system-entity-instantiation]]
+== System: Entity Instantiation
 
 Entity fields can be initialized in two main ways: by setting default values directly in the field definition or by using a lifecycle callback method with `@PostConstruct`. These approaches serve different purposes depending on the complexity and requirements of the initialization logic.
 
 [[default-values]]
 === Default Values
 
-Simple attributes (e.g., `Boolean`, `Integer`) and enumerations can be initialized directly in the field declaration of an entity class. In the Petclinic example, the `Visit` entity has an attribute `paid`, which is a boolean flag indicating whether a visit has already been paid. This value should, by default, be `FALSE`. The default value can be set directly in the field definition:
+Simple attributes like `Boolean`, `Integer` can be initialized directly in the field declaration of an entity class. In the Petclinic example, the `Visit` entity has an attribute `paid`, which is a boolean flag indicating whether a visit has already been paid. This value should, by default, be `FALSE`. The default value can be set directly in the field definition:
 
 .Visit.java
 [source,java]
 ----
 include::example$/src/main/java/io/jmix/petclinic/entity/visit/Visit.java[tags=start-class;paid-default-value;end-class]
 ----
+
+NOTE: Even though the `paid` field is initialized with a default value, this does not mean it is immutable. The value can still be modified programmatically or through the UI as needed. This default simply provides an initial state for the entity, ensuring consistency while allowing flexibility for changes before saving.
 
 This approach is simple and efficient for static default values that do not depend on external factors or dynamic calculations.
 
@@ -72,8 +99,12 @@ The `@PostConstruct` method is invoked in the following scenarios:
 - When an instance is created by the UI framework during user interaction.
 - When an instance is created by the generic REST API.
 
-Here’s an example of a `PostConstruct` method in the `Visit` entity:
-To set a static default value for the `visitStatus` field, you can use a simple `@PostConstruct` method:
+[NOTE]
+====
+Because initialization logic like `@PostConstruct` methods depends on Jmix lifecycle management, you should avoid directly creating entity instances using Java’s `new` keyword (e.g., `new Visit()`). Instead, always use the `metadata.create(Visit.class)` or `dataManager.create(Visit.class)` methods provided by Jmix. These factory methods ensure all lifecycle callbacks are correctly executed during entity creation.
+====
+
+Here’s an example of a `@PostConstruct` method in the `Visit` entity. This method sets a static default value for the visitStatus field when the entity is created:
 
 .Visit.java
 [source,java]
@@ -110,36 +141,23 @@ include::example$/src/main/java/io/jmix/petclinic/entity/visit/Visit.java[tags=s
 
 By using Spring Bean Injection, you can access framework APIs and custom beans directly in your initialization logic. This allows you to handle context-specific data and implement more flexible and dynamic entity initialization.
 
-[[ui-layer-initialization]]
-== UI-Layer Initialization
+[[ui-view-initialization]]
+== UI: View Initialization
 
-On the UI layer, there are two main ways to initialize an entity during view creation. The first one is internal, within the view controller that shows the newly created entity. The second one is external, where the entity is initialized by the code that opens the destination view.
+On the UI layer, there are two main ways to initialize an entity during view creation. The first one is external, where the entity is initialized by the code that opens the destination view. The second one is internal, where initialization happens directly within the view controller that manages the entity.
 
-[[internal-initialization]]
-=== Internal Initialization via InitEntityEvent
+External initialization can be achieved in two different ways, both of which we will explore in this guide. One approach is using the `Create Action Initializer`, which allows the calling view to set default values before opening the detail view. The other approach leverages the `Dialog Windows API`, which enables more complex initialization logic, such as selecting related entities in an intermediate step before opening the detail view.
 
-The first approach is to perform the entity initialization within the destination view controller itself. In Jmix, this can be achieved using UI events, such as the `InitEntityEvent`. This event is specifically designed to allow initialization logic for newly created entities. For more details, see: xref:flow-ui:views/view-events.adoc#init-entity-event[Flow UI: Init Entity Event].
-
-For example, in the Petclinic application, this internal initialization is used to set the `type` of a `Visit` to `REGULAR_CHECKUP`:
-
-.VisitDetailView.java
-[source,java]
-----
-include::example$/src/main/java/io/jmix/petclinic/view/visit/VisitDetailView.java[tags=init-entity-event]
-----
-<1> The `onInitEntity` method subscribes to the `InitEntityEvent` triggered for the newly created `Visit` instance.
-<2> The `type` field is set to `REGULAR_CHECKUP`, providing a sensible default value.
-
-The advantage of this approach is its simplicity and minimal required code changes. It is a good fit for scenarios where specific attributes, which are not dynamic, need to be initialized. However, since it is scoped to the destination view, it is less flexible for reacting to external parameters passed into the view.
+We will now examine these external initialization methods in detail.
 
 [[external-initialization-create-action]]
 === External Initialization via Create Action Initializer
 
-Another way to initialize entity attributes externally is by using the `initializer` method of a `Create` action. This approach allows you to define custom initialization logic for new entities created via standard actions, providing a non-invasive way to set default values.
+One way to initialize entity attributes externally is by using the `initializer` method of a `Create` action. This approach allows you to define custom initialization logic for new entities created via standard actions, providing a non-invasive way to set default values.
 
 In contrast to the internal initialization approach, this method offers more flexibility by allowing access to the context of the `ListView`. For example, you can incorporate user inputs or other dynamic information available in the current view when initializing the entity. At the same time, it avoids the need for extensive modifications to the standard behavior of the `Create` action, keeping the implementation simple and easy to maintain.
 
-In the example below, the `initializer` method is used to set the `healthStatus` of a `Pet` entity to `UNKNOWN` whenever a new `Pet` is created through the `petsDataGrid.create` action.
+In the example below, the `initializer` method is used on the *Pet List View* to set the `healthStatus` of a `Pet` entity to `UNKNOWN` whenever a new `Pet` is created through the `petsDataGrid.create` action.
 
 .PetListView.java
 [source,java]
@@ -157,9 +175,13 @@ This method is ideal when the initialization logic is relatively simple and does
 
 In some scenarios, the standard actions like `create` and `edit` may not fully accommodate the level of customization required. For example, you might need to present an intermediate dialog for user input or perform additional operations before initializing and displaying the new entity. In such cases, the Dialog Windows API provides a flexible alternative.
 
+To illustrate this, we will now look at a concrete example where we implement a *Create Regular Checkup* button in the *Visit List View*. The goal is to first allow the user to select a pet from a lookup dialog. Once the pet is selected, a new visit creation view is opened automatically, with predefined values such as visit type and a structured description based on the selected pet.
+
+image::ui-initilization-external-1.png[Visit List View, width=800, alt="Visit List View with Create Regular Checkup Button", link="_images/ui-initilization-external-1.png"]
+
 Using the Dialog Windows API, you can programmatically open views and configure their behavior before they are displayed. This includes defining an initializer that sets default values for the entity being created.
 
-For instance, in the `VisitListView`, the Dialog Windows API is used to create a new `Visit` entity for a "regular checkup". The process involves selecting a `Pet` first, then passing that selection along with additional initialization logic to the detail view for creating the new `Visit`:
+In the `VisitListView`, the Dialog Windows API is used to create a new `Visit` entity for a "regular checkup". The process involves selecting a `Pet` first, then passing that selection along with additional initialization logic to the detail view for creating the new `Visit`:
 
 .VisitListView.java
 [source,java]
@@ -175,60 +197,110 @@ This approach provides greater flexibility and customization for workflows that 
 
 Now, let’s take a look at the corresponding UI screens for this workflow:
 
-image::ui-initilization-external-1.png[Visit List View, width=800, alt="Visit List View with Create Regular Checkup Button", link="images/ui-initilization-external-1.png"]
-
-image::ui-initilization-external-2.png[Pet Lookup Dialog, width=800, alt="Pet Lookup Dialog", link="images/ui-initilization-external-2.png"]
+image::ui-initilization-external-2.png[Pet Lookup Dialog, width=800, alt="Pet Lookup Dialog", link="_images/ui-initilization-external-2.png"]
 
 image::ui-initilization-external-3.png[Regular Checkup Creation Dialog, width=800, alt="Regular Checkup Creation Dialog", link="_images/ui-initilization-external-3.png"]
 
+[[internal-initialization]]
+=== Internal Initialization via InitEntityEvent
 
-[[save-event-initialization]]
-== Initialization During Save Events
+The second approach is to perform the entity initialization within the destination view controller itself. In Jmix, this can be achieved using UI events, such as the `InitEntityEvent`. This event is specifically designed to allow initialization logic for newly created entities. For more details, see: xref:flow-ui:views/view-events.adoc#init-entity-event[Flow UI: Init Entity Event].
 
-While UI-layer initialization events such as `InitEntityEvent` configure default values during entity creation, there are cases where initialization logic must be applied at the moment of saving. Such scenarios include applying defaults based on user input, auto-generating unique identifiers, or ensuring business rules are met before / after persisting the entity.
+Let's look at the example where we use this internal initialization to set the `type` of a `Visit` to `REGULAR_CHECKUP`:
 
-In Jmix, there are three common methods to execute initialization logic during the save lifecycle:
+.VisitDetailView.java
+[source,java]
+----
+include::example$/src/main/java/io/jmix/petclinic/view/visit/VisitDetailView.java[tags=start-class;init-entity-event;end-class]
+----
+<1> The `onInitEntity` method subscribes to the `InitEntityEvent` triggered for the newly created `Visit` instance.
+<2> The `type` field is set to `REGULAR_CHECKUP`, providing a sensible default value.
 
-. BeforeSaveEvent (UI Controller Level): Executes just before saving within the view controller.
-. EntitySavingEvent (Entity Listener Level): Fires before the entity is saved to the database, covering both UI and programmatic creations.
-. EntityChangedEvent with AFTER_COMMIT (Post-Commit Level): Executes after the database commit, often used for follow-up actions or audit logging.
+The advantage of this approach is its simplicity and minimal required code changes. It is a good fit for scenarios where specific attributes, which are not dynamic, need to be initialized. However, since it is scoped to the destination view, it is less flexible for reacting to external parameters passed into the view.
 
-Let’s explore each of these approaches in detail.
+[[ui-dependent-field-updates]]
+== UI: Dependent Field Updates
 
-[[before-save-event]]
-=== Before Save Event
+Dependent field updates are not strictly part of entity initialization but play a crucial role in dynamically adjusting default values based on user input. Unlike static initialization, these updates allow values to be recalculated whenever a user modifies a related field, ensuring logical consistency while still enabling manual adjustments.
 
-The `BeforeSaveEvent` is a view-level event that occurs before an entity is saved from the UI within a standard detail view. It is useful for setting values based on user input or computed logic from the view’s context.
+A common use case is pre-filling related fields based on the user's selection while keeping the option to override the value afterward. This is useful in scenarios where calculated or context-sensitive defaults should be applied dynamically as users interact with the form.
+
+In the following example, we implement a dependent field update that adjusts the `VisitEnd` time based on the selected `VisitStart` value. When a user sets `VisitStart`, the system automatically calculates `VisitEnd` based on the `VisitType`. The default durations are:
+
+- **Regular Checkup:** +30 minutes
+- **Recharge:** +3 hours
+- **Status Condition Healing:** +1 hour
+- **Disease Treatment:** +1 hour
+- **Other:** +1 hour
+
+Each time `VisitStart` is updated, the `VisitEnd` field is recalculated accordingly. However, users retain the ability to manually modify the `VisitEnd` time if needed.
+
+Now, let’s take a look at the implementation.
+
+.VisitDetailView.java
+[source,java]
+----
+include::example$/src/main/java/io/jmix/petclinic/view/visit/VisitDetailView.java[tags=start-class;visit-start-value-change-event;end-class]
+----
+<1> The method is subscribed to changes in the `visitStartField`, ensuring that any modification to the field triggers an update.
+<2> The `TypedValueChangeEvent` event provides access to both the old and new values of the `visitStartField` field in a type-safe manner.
+<3> If `visitStart` is not null, the `calculateVisitEnd()` method is called to determine the appropriate `visitEnd` time based on the visit type.
+
+This approach ensures that default values for `visitEnd` are dynamically applied while allowing users to manually override them when necessary.
+
+[TIP]
+====
+There are two main types of value change events in Jmix: xref:flow-ui:vc/common-handlers.adoc#ComponentValueChangeEvent[ComponentValueChangeEvent] and xref:flow-ui:vc/common-handlers.adoc#TypedValueChangeEvent[TypedValueChangeEvent]. The `ComponentValueChangeEvent` is the more general event and applies to a wide range of UI components.
+
+However, when working with components like `TypedDateTimePicker`, which support multiple data types, the `TypedValueChangeEvent` provides a more precise alternative. In this case, since `visitStart` is of type `LocalDateTime`, using `TypedValueChangeEvent` ensures that the event handler receives the correctly typed value directly, without requiring additional type conversions.
+====
+
+
+
+[[ui-initialization-while-saving]]
+== UI: Initialization while Saving
+
+UI-based events such as `BeforeSaveEvent` allow you to configure default values during the saving process. These events are triggered exclusively within the user interface and apply only to saves performed through a view.
+
+NOTE: The `BeforeSaveEvent` is a lifecycle event for view classes that extend `StandardDetailView`, which is the default base class for all entity detail views generated by Jmix Studio. If your view class does not extend `StandardDetailView`, you can still apply similar initialization logic by using the `PreSaveEvent` of the `DataContext`: xref:flow-ui:data/data-context.adoc#pre-save-event[DataContext PreSaveEvent].
+
+UI-based initialization during saving is useful for setting default values that depend on user inputs or dynamic computations at runtime. It differs from Dependent Field Updates, as it applies values automatically during the save process rather than updating fields dynamically based on user input. It is useful when the user does not need to review or modify the value before saving, ensuring consistency without additional interaction. This approach is particularly effective for completing missing fields, generating values from the current view context, or applying UI-specific logic during the save process.
 
 In the example below, the `VisitDetailView` automatically generates a structured description for a `Visit` if the user leaves the description field empty:
 
 .VisitDetailView.java
 [source,java]
 ----
-include::example$/src/main/java/io/jmix/petclinic/view/visit/VisitDetailView.java[tags=before-save-event]
+include::example$/src/main/java/io/jmix/petclinic/view/visit/VisitDetailView.java[tags=start-class;before-save-event;end-class]
 ----
 <1> Subscribe to `BeforeSaveEvent`: The `onBeforeSave()` method listens for the `BeforeSaveEvent` fired just before saving.
 <2> Check if description is empty: If no description is provided, the system calculates a default description.
 <3> Dynamic Description Generation: The `calculateDefaultDescription()` method constructs a default visit description based on the visit type and patient information.
 
-[NOTE]
-====
-The `BeforeSaveEvent` only triggers within the view and applies only to UI-based saves. It is not triggered by programmatic saves or REST API calls. For broader coverage, consider using `EntitySavingEvent`.
-====
+NOTE: The `BeforeSaveEvent` only triggers within the view and applies only to UI-based saves. It is not triggered by programmatic saves or generic REST API calls.
+
+[[system-persistence-events]]
+== System: Persistence Events
+
+Persistence events are system-level entity lifecycle events that occur when data is saved to the database. These events apply to all save operations, including those from the UI, REST API, or programmatic operations. They are commonly used for initialization logic that must be consistent across different entry points. This section covers events that occur before and after an entity is persisted, showing how they can be used to handle initialization and follow-up actions.
 
 [[entity-saving-event]]
-=== Entity Saving Event (Entity Listener Level)
+=== Entity Saving Event
 
-The `EntitySavingEvent` is a lifecycle event triggered before an entity is saved to the database. It is a universal event that applies to all save operations, whether from the UI, generic REST API, or programmatic calls (`dataManager.save()`).
+The `EntitySavingEvent` is a lifecycle event triggered before an entity is saved to the database. This includes newly created entities as well as updates to existing entities. It is a universal event that applies to all save operations, whether from the UI, generic REST API, or programmatic calls (`dataManager.save()`).
 
-In this example, an `EntitySavingEvent` listener is used to automatically generate a unique visit number for every new `Visit` entity. This number is assigned during the save process and cannot be modified by the user.
+[WARNING]
+====
+Persistence events only work when using the regular Jmix persistence APIs, such as xref:data-access:data-manager.adoc[Data Manager] or xref:data-access:data-repositories.adoc[Data Repositories]. If you bypass these mechanisms and interact directly with the database using JPA's xref:data-access:entity-manager.adoc[Entity Manager] or custom JDBC calls (by leveraging Spring's `JdbcTemplate`), these events will _not_ be triggered. To ensure that persistence events function correctly, always perform save operations through Jmix’s APIs.
+====
+
+In this example, an `EntitySavingEvent` listener is used to automatically generate a unique visit number for every new `Visit` entity in the form of: `V-<visit-year>-<auto-increment-number>`. This number is assigned during the save process and cannot be modified by the user.
 
 The generated visit number depends on the user’s input—specifically, the year from the `visitStart` date. Since the number is constructed based on a field that the user sets, it cannot be assigned earlier, such as during entity creation or UI initialization. Instead, it is calculated only when the record is saved to ensure that it reflects the correct year.
 
-Additionally, this approach prevents issues with concurrent users. If the visit number were assigned during entity initialization (e.g., using `@PostConstruct`), it could cause numbering conflicts or gaps in the sequence when multiple users create visits simultaneously.
+Additionally, this approach prevents issues with concurrent users. If the visit number were assigned while the view is open using dependent field updates, it could cause numbering conflicts or gaps in the sequence when multiple users create visits simultaneously.
 
 By generating the number just before saving, this approach ensures that the numbering is unique and continuous, even under concurrent usage.
-
 
 .VisitNumberGeneratorEntityListener.java
 [source,java]
@@ -236,18 +308,28 @@ By generating the number just before saving, this approach ensures that the numb
 include::example$/src/main/java/io/jmix/petclinic/entity/visit/VisitNumberGeneratorEntityListener.java[tags=entity-saving-event-listener]
 ----
 <1> Event Listener: The method listens to `EntitySavingEvent` to assign a unique number before saving.
-<2> Sequence Generator: A unique number is generated using Jmix's built-in xref:features:sequences.adoc[Sequences API].
-<3> Formatted Number:The visit number is formatted with the year and a zero-padded sequence number.
-<4> Only for New Records: The number is only assigned for newly created visits (`event.isNewEntity()`), preserving existing numbers during edits.
+<2> To ensure that the visit number is only generated for new visits, the method first checks `event.isNewEntity()` and returns early in case it is not.
+<3> Sequence Generator: A unique number is generated using Jmix's built-in xref:features:sequences.adoc[Sequences API].
+<4> Formatted Number:The visit number is formatted with the year and a zero-padded sequence number.
 
-For more information on Entity Saving Event Listener see: xref:data-access:entity-events.adoc#saving-loading-events[]
+For more information on Entity Saving Events see: xref:data-access:entity-events.adoc#saving-loading-events[Data Access: Entity Events - EntitySavingEvent].
 
 [[entity-changed-event]]
-=== Entity Changed Event (After Commit)
+=== Entity Changed Event
 
-The `EntityChangedEvent` is a lifecycle event triggered after an entity is committed to the database. It is commonly used for follow-up actions that should only occur after the database transaction is complete. Typical use cases include automatic assignments, notifications, or audit logging.
+The `EntityChangedEvent` is triggered whenever an entity is modified and persisted in the database. It occurs in two distinct phases of the transaction lifecycle: before the commit and after the commit. Understanding this distinction is essential when implementing business logic that depends on entity changes.
 
-In this example, the `AssignNurseToVisitAutomaticallyEventListener` listens for `EntityChangedEvent` events and assigns an available nurse to a new visit if no nurse has been assigned:
+By default, `EntityChangedEvent` can be handled:
+
+- **Before the transaction commit:** In this case, the event is fired while the transaction is still open, meaning any changes made within the event handler are included in the same transaction. This allows modifying additional entities, enforcing validations, or canceling the transaction if necessary.
+- **After the transaction commit:** Here, the event is triggered only after the database commit has been successfully completed. This ensures that the entity changes are fully persisted and visible to other transactions, making it a suitable place for actions like sending notifications, triggering asynchronous processes, or executing external API calls.
+
+See also xref:data-access:entity-events.adoc#entity-changed-event[Data Access: Entity Events - Entity Changed Event]. To understand database transactions and their significance in ensuring data consistency, refer to this general explanation:
+https://en.wikipedia.org/wiki/Database_transaction[Wikipedia: Database Transactions].
+
+This example handles the `EntityChangedEvent` *after* commit to ensure that the entity changes are fully persisted before executing follow-up actions. By handling the event in a separate transaction, we avoid interfering with the main persistence process.
+
+Running this logic post-commit ensures that if no available nurse is found, the `assignedNurse` field simply remains empty without affecting the transaction. Additionally, since the nurse assignment is not critical to storing the visit, it should not block or delay the main database operation.
 
 .AssignNurseToVisitAutomaticallyEventListener.java
 [source,java]
@@ -256,88 +338,58 @@ include::example$/src/main/java/io/jmix/petclinic/entity/visit/AssignNurseToVisi
 ----
 <1> `@TransactionalEventListener`: Listens for `EntityChangedEvent` after the transaction is committed, ensuring that the visit record is already stored in the database.
 <2> `@Transactional(propagation = Propagation.REQUIRES_NEW)`: Opens a new transaction for loading and saving data. This is necessary because the current transaction has already been closed after the commit. Without this, `dataManager.load()` or `dataManager.save()` would fail due to the lack of an active transaction.
-<3> Event Type Check (`event.getType()`): Ensures that the logic only runs when a new visit (`Type.CREATED`) is created.
-<4> `dataManager.load()` with `@Transactional`: Loads the `Visit` entity from the database in the new transaction. This is possible because of `<2>` (`Propagation.REQUIRES_NEW`). The `fetchPlan()` ensures that the assigned nurse is loaded.
-<5> `assignAvailableNurseAutomatically()` Call: Proceeds with the nurse assignment logic if no nurse is assigned.
-
-The nurse assignment happens only after the visit is fully saved in the database. Because the assignment is performed in a new transaction, it does not block or interfere with the original save operation. Additionally, this approach ensures that only nurses who are truly available (based on saved visits) are assigned, preventing double assignments or race conditions, even when multiple users create visits simultaneously.
-
+<3> Event Type Check (`event.getType()`): Ensures that the logic only runs when a new visit is created (`Type.CREATED`).
+<4> `dataManager.load()` with `@Transactional`: Loads the `Visit` entity from the database in the new transaction. This is possible because of `@Transactional(propagation = Propagation.REQUIRES_NEW)`.
+<5> The assignment is saved in case an available nurse is found.
 
 For more information, see:
-xref:data-access:entity-events.adoc#after-commit[]
-
-
-[[when-to-use-which]]
-== Choosing the Right Initialization Approach
-
-Different initialization approaches are suited for different use cases. The choice depends on the context in which the entity is created and the level of control or customization required. Below is a comparison of the main approaches and their characteristics to help you decide which one to use.
+xref:data-access:entity-events.adoc#after-commit[Data Access: Entity Events - Handling Changes After Commit]
 
 [[comparison-matrix]]
-=== Comparison Matrix
+== Comparison Matrix
 
-The table below summarizes the main differences between the initialization approaches:
+The table below summarizes the main differences between the initialization approaches based on their stage in the entity lifecycle:
 
-[cols="1,1,1,1", options="header"]
+[cols="2,1,3", options="header"]
 |===
-| Approach
-| Applicability
+| Stage
 | Scope
-| Notes
+| Characteristics
 
-| xref:#default-values[]
-| Always applied
+| xref:#system-entity-instantiation[]
 | Entity-wide
-| Applied regardless of how the entity is created (Generic REST API, programmatic creation, UI actions, etc.). Best for simple static default values.
+| Applied at entity creation for static defaults, independent of creation method.
 
-| xref:#post-construct-initialization[]
-| Always applied
-| Entity-wide
-| Similar to direct attribute assignment but allows for dynamic logic, such as invoking services or beans. Best for default values requiring more complex initialization logic.
-
-| xref:#internal-initialization[]
-| UI-only
+| xref:#ui-view-initialization[]
 | View-specific
-| Logic is scoped to the specific UI screen where the entity is created. Cannot handle broader contexts like REST API or programmatic creation.
+| Sets initial values when opening a view.
 
-| xref:external-initialization-create-action[]
-| UI-only
-| Calling view-specific
-| Allows additional customization within the calling view. Useful when contextual information from the view is needed for initialization.
+| xref:#ui-dependent-field-updates[]
+| View-specific
+| Updates fields dynamically based on user input, ensuring calculated default values while still allowing manual adjustments.
 
-| xref:external-initialization-dialogs-api[]
-| UI-only
-| Fully customizable
-| Suitable for workflows that require additional user input or intermediate steps (e.g., opening dialogs or gathering related entity data).
+| xref:#ui-initialization-while-saving[]
+| View-specific
+| Allows last-moment adjustments before persisting an entity, ensuring consistency based on user inputs.
+
+| xref:#system-persistence-events[]
+| System-wide
+| Ensures critical entity values are finalized while / after saving to the database.
+
 |===
-
-=== Key Considerations
-
-* Entity-level initialization: Approaches like Direct Attribute Assignment and PostConstruct Initialization are applied universally, ensuring that entities are initialized regardless of the creation method. This includes cases like programmatic creation, Generic REST API calls, or entity management tools.
-
-* UI-specific initialization: UI-layer approaches such as InitEntityEvent, Create Action Initializer, and Dialog Windows API are only applied within the context of the respective user interface. These methods will not be executed for entities created outside the UI (e.g., via the Generic REST API).
-
-* Contextual logic:
- InitEntityEvent is simple and requires minimal code but lacks access to user inputs or contextual data from the calling view.
- Create Action Initializer allows some contextual logic from the calling view, making it more flexible.
- Dialog Windows API is ideal for workflows where user interaction is needed to determine initialization values.
-
-Use this comparison to select the best initialization approach based on your application's requirements and the level of customization needed.
 
 [[summary]]
 == Summary
 
-This guide explored how to set up initial values for entities in Jmix, demonstrating techniques to streamline data entry and ensure consistency across applications. We reviewed direct attribute assignment for static defaults, `@PostConstruct` for more dynamic logic, and UI-based initialization methods like `InitEntityEvent`, `Create Action Initializer`, and the Dialog Windows API. Each approach was illustrated with practical examples from the Petclinic application to highlight its strengths and use cases.
+This guide explored various techniques for setting initial values in Jmix entities, ensuring consistency and efficiency across applications. We covered direct attribute assignment for static defaults, `@PostConstruct` for dynamic logic, and UI-based approaches such as `InitEntityEvent`, `Create Action Initializer`, and Dialog Windows API, demonstrating their strengths with practical examples from the Petclinic application.
 
-Entity initialization methods are crucial for improving user experience and maintaining data integrity. Direct attribute assignment and `@PostConstruct` ensure universal application of defaults, making them suitable for all creation contexts, including REST API and programmatic use. UI-based approaches, on the other hand, are limited to user interface contexts but provide additional flexibility by incorporating user input or dynamic logic, especially with tools like the Dialog Windows API.
+Beyond initialization, we examined *Dependent Field Updates*, which dynamically adjust values based on user input while still allowing modifications. Additionally, we explored *Persistence Events* like `EntitySavingEvent` and `EntityChangedEvent`, which enforce business rules and ensure final data integrity before and after database commits.
 
-By understanding these approaches and their trade-offs, you can implement initial entity values that align with your application’s needs and workflows. These techniques enable robust, flexible, and consistent data initialization, supporting scalable and maintainable application designs while enhancing usability for end-users.
+By understanding these approaches and their trade-offs, you can design robust and maintainable entity initialization processes tailored to your application’s needs. Whether applying static defaults, handling user input dynamically, or enforcing rules at the persistence level, these techniques provide a scalable foundation for data consistency and usability.
 
-
-// TODO: default value before save (like auto increment numbers)?
-// TODO: dynamic default value different per user selection (in dynamic table)?
-// TODO: create lifecycle diagram on when which default value is set
 
 [[further-information]]
 === Further Information
 
+* xref:flow-ui:views/view-events.adoc[]
 * xref:data-access:entity-events.adoc[]
