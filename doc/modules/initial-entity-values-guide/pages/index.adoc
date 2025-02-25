@@ -95,7 +95,7 @@ The `@PostConstruct` annotation allows you to execute custom initialization logi
 
 The `@PostConstruct` method is invoked in the following scenarios:
 
-- When an instance is programmatically created using `metadata.create(Visit.class)` or `dataManager.create(Visit.class)`.
+- When an instance is programmatically created using the `create()` method of the `Metadata`, `DataManager` or `DataContext` beans. For example `dataManager.create(Visit.class)`.
 - When an instance is created by the UI framework during user interaction.
 - When an instance is created by the generic REST API.
 
@@ -139,7 +139,7 @@ include::example$/src/main/java/io/jmix/petclinic/entity/visit/Visit.java[tags=s
 <2> The `TimeSource` bean is injected directly into the method, providing access to the current system time.
 <3> If the `visitStart` field has not been set, it is initialized with the current time.
 
-By using Spring Bean Injection, you can access framework APIs and custom beans directly in your initialization logic. This allows you to handle context-specific data and implement more flexible and dynamic entity initialization.
+Using Spring Bean Injection, you can directly access framework APIs and custom beans in your initialization logic, enabling flexible and dynamic entity initialization with context-specific data handling.
 
 [[ui-view-initialization]]
 == UI: View Initialization
@@ -310,7 +310,7 @@ include::example$/src/main/java/io/jmix/petclinic/entity/visit/VisitNumberGenera
 <1> Event Listener: The method listens to `EntitySavingEvent` to assign a unique number before saving.
 <2> To ensure that the visit number is only generated for new visits, the method first checks `event.isNewEntity()` and returns early in case it is not.
 <3> Sequence Generator: A unique number is generated using Jmix's built-in xref:features:sequences.adoc[Sequences API].
-<4> Formatted Number:The visit number is formatted with the year and a zero-padded sequence number.
+<4> Formatted Number: The visit number is formatted with the year and a zero-padded sequence number.
 
 For more information on Entity Saving Events see: xref:data-access:entity-events.adoc#saving-loading-events[Data Access: Entity Events - EntitySavingEvent].
 
@@ -325,7 +325,7 @@ By default, `EntityChangedEvent` can be handled:
 - **After the transaction commit:** Here, the event is triggered only after the database commit has been successfully completed. This ensures that the entity changes are fully persisted and visible to other transactions, making it a suitable place for actions like sending notifications, triggering asynchronous processes, or executing external API calls.
 
 See also xref:data-access:entity-events.adoc#entity-changed-event[Data Access: Entity Events - Entity Changed Event]. To understand database transactions and their significance in ensuring data consistency, refer to this general explanation:
-https://en.wikipedia.org/wiki/Database_transaction[Wikipedia: Database Transactions].
+https://en.wikipedia.org/wiki/Database_transaction[Wikipedia: Database Transactions^].
 
 This example handles the `EntityChangedEvent` *after* commit to ensure that the entity changes are fully persisted before executing follow-up actions. By handling the event in a separate transaction, we avoid interfering with the main persistence process.
 
@@ -357,7 +357,7 @@ The table below summarizes the main differences between the initialization appro
 | Characteristics
 
 | xref:#system-entity-instantiation[]
-| Entity-wide
+| System-wide
 | Applied at entity creation for static defaults, independent of creation method.
 
 | xref:#ui-view-initialization[]
@@ -381,7 +381,7 @@ The table below summarizes the main differences between the initialization appro
 [[summary]]
 == Summary
 
-This guide explored various techniques for setting initial values in Jmix entities, ensuring consistency and efficiency across applications. We covered direct attribute assignment for static defaults, `@PostConstruct` for dynamic logic, and UI-based approaches such as `InitEntityEvent`, `Create Action Initializer`, and Dialog Windows API, demonstrating their strengths with practical examples from the Petclinic application.
+This guide explored various techniques for setting initial values in Jmix entities, ensuring consistency and efficiency across applications. We covered direct attribute assignment for static defaults, `@PostConstruct` for dynamic logic, and UI-based approaches such as `InitEntityEvent`, Create Action Initializer, and Dialog Windows API, demonstrating their strengths with practical examples from the Petclinic application.
 
 Beyond initialization, we examined *Dependent Field Updates*, which dynamically adjust values based on user input while still allowing modifications. Additionally, we explored *Persistence Events* like `EntitySavingEvent` and `EntityChangedEvent`, which enforce business rules and ensure final data integrity before and after database commits.
 
