@@ -87,6 +87,16 @@ NOTE: Even though the `paid` field is initialized with a default value, this doe
 
 This approach is simple and efficient for static default values that do not depend on external factors or dynamic calculations.
 
+[CAUTION]
+====
+Do not initialize fields of collection attributes with the new `ArrayList` or `HashSet` instances. It will break the xref:data-access:fetching.adoc[data fetching] functionality. If you want to have default values in the fields, use the special collections provided by Jmix: `NotInstantiatedList` or `NotInstantiatedSet`. For example:
+
+[source,java]
+----
+@OneToMany(mappedBy = "user")
+private List<UserStep> steps = new NotInstantiatedList<>();
+----
+====
 
 [[post-construct-initialization]]
 === PostConstruct Initialization
