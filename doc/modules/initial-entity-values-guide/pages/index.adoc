@@ -114,7 +114,7 @@ The `@PostConstruct` method is invoked in the following scenarios:
 Because initialization logic like `@PostConstruct` methods depends on Jmix lifecycle management, you should avoid directly creating entity instances using Java’s `new` keyword (e.g., `new Visit()`). Instead, always use the `metadata.create(Visit.class)` or `dataManager.create(Visit.class)` methods provided by Jmix. These factory methods ensure all lifecycle callbacks are correctly executed during entity creation.
 ====
 
-Here’s an example of a `@PostConstruct` method in the `Visit` entity. This method sets a static default value for the visitStatus field when the entity is created:
+Here’s an example of a `@PostConstruct` method in the `Visit` entity. This method sets a static default value for the treatmentStatus field when the entity is created:
 
 .Visit.java
 [source,java]
